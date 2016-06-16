@@ -1,0 +1,136 @@
+一、配置git用户名和邮箱
+git config --global user.name "sucd"
+git config --global user.email "407591245@qq.com"
+
+二、常见命令
+cd D:	切换到D盘
+mkdir testgit	新建testgit目录
+pwd	显示当前的工作目录
+rm b.txt	删除b.txt文件
+cat readme.txt	查看文件内容
+exit	退回git命令行界面
+
+git init	把当前目录变成git可以管理的仓库
+git add readme.txt	添加文件
+git commit -m 'readme.txt提交'	提交命令，类似svn的commit
+git status	查看是否还有文件未提交
+git diff readme.txt	查看文件更改内容
+git log		显示最近到最远的日志
+	git log --pretty=oneline
+git reset --hard HEAD^	退回到上一版本
+git reset --hard HEAD^^	退回到上上一版本
+git reset --hard HEAD~100	退回到前100个版本
+git reset --hard 版本号		退回到指定的版本号
+git reflog	查看版本号
+
+
+三、理解工作区与暂存区的区别
+1）工作区：就是你在电脑上看到的目录，例目录下testgit里面的文件，或者以后需要再新建的目录文件等
+2）版本库（Repository）：工作去有一个隐藏目录.git，这是版本库。版本库里面最重要的是stage目录（暂存区），还有git为我们自动创建了第一个分支master，以及指向master的一个指针HEAD；
+3）使用Git提交文件到版本库有两步：
+  第一步：是使用 git add 把文件添加进去，实际上就是把文件添加到暂存区。
+  第二步：使用git commit提交更改，实际上就是把暂存区的所有内容提交到当前分支上。
+
+四、git撤销修改和删除文件
+(一)、撤销修改
+git checkout -- readme.txt	丢弃工作区当中的全部修改
+	其中的'--'一定要带上，否则命令表示新建分支
+(二)、删除文件
+rm b.txt	删除文件
+git checkout -- b.txt	恢复删除的文件
+
+
+五、远程仓库
+	本地git仓库和远程github仓库之间的传输是通SSH加密的。
+	1）、创建SSH KEY (id_rsa , id_rsa.pub)	“C:\Users\Administrator\.ssh”	
+		ssh-keygen -t rsa -C "youemail@example.com"
+	2)、登录github（https://github.com/），设置SSH Keys
+
+	I、如何添加远程仓库？
+		一、在远程github创建版本库 repository 
+		二、在本地执行如下命令：
+			git remote add origin https://github.com/dongdong5820/testgit.git
+			git push -u origin master （第一次要加上 -u,以后直接 git push origin master）
+			然后输入用户名和密码(dongdong5820  auto4s@ipa!)
+	II、如何克隆远程仓库？
+		一、在远程github创建版本库 reposity
+		二、本地执行命令克隆： git clone https://github.com/dongdong5820/testgit2
+
+六、创建与合并分支
+	1、创建分支并切换到分支
+		git checkout -b dev     dev（分支名称）
+		相当于两条命令： git branch dev;  git checkout dev;
+	2、git branch查看分支，会列出所有的分支，当前分支前面会添加一个星号。
+	3、将 dev分支合并到master主分支上：
+		git checkout master;   切换到master分支
+		git merge dev;	合并；
+	总结：
+		查看分支：git branch
+		创建分支：git branch name
+		切换分支：git checkout name
+		创建+切换分支：git checkout -b name
+		合并某分支到当前分支：git merge name
+		删除分支：git branch -d name
+	
+
+	1）如何解决冲突
+		git merge fenzhi1   报错：
+			Auto-merging readme.txt
+			CONFLICT (content):Merge conflict in readme.txt
+			Automatic merge failed; fix conflicts and then commit the result.
+		解决方法： (1)git status -> (2) 修改文件 -> (3) git add readme.txt ->(4) git commit -m'conflict fixed';
+	
+	2)分支管理策略
+		git 一般使用“Fast forward”模式，在这种模式下，删除分支后，会丢掉分支信息，现在我们用带参数--no-ff来禁用“Fast forward”
+			git checkout -b dev 
+			git add readme.txt   (执行前修改文件内容)
+			git commit -m 'add merge'
+			git checkout master
+			git merge --no-ff -m 'merge with no-ff' dev   // 合并dev分支 --no-ff 表示禁用fastforward模式
+			git branch -d dev
+			git branch 
+			git log --graph --pretty=oneline --abbrev-commit
+	分支策略：首先master主分支应该是非常稳定的，也就是用来发布新版本，一般情况下不允许在上面干活，干活一般情况下在新建的dev分支上干活，干完后，
+		比如要发布，或者说dev分支代码稳定后就可以合并到主分支master上来。
+
+
+七、bug分支
+	比如我在开发中接到一个404 bug时候，我们可以创建一个404分支来修复它，但是，当前的dev分支上的工作还没有提交。这时可以用'git stash' 把当前工作现场‘隐藏起来’
+	演示：
+	git checkout -b dev   创建切换分支并修改readme.txt文件
+	git status 	提示有文件被修改
+	git stash 	// 将工作现场隐藏起来
+	git status 	查看状态，是干净的
+	git checkout -b issue-404
+	cat readme.txt    //修改bug，即修改文件内容
+	git add readme.txt
+	git commit -m 'fix bug 404'
+	git checkout master
+	git merge --no-ff -m 'merge bug fix 404' issue-404
+	cat readme.txt
+	git branch -d issue-404
+	git checkout dev 	// 回到dev分支
+	git status		// 工作区是干净的
+	git stash list		// 查看隐藏的工作现场
+	//  恢复工作现场的2中方法
+	1) git stash apply + git stash drop;
+	2) git stash pop;
+	
+
+八、多人协作
+	git remote 	查看远程库的信息
+	git remote -v 	查看远程库的详细信息
+	git checkout -b dev origin/dev		将远程origin/dev分支 下载到本地dev分支
+	（一）、推送分支
+		git push origin master      // origin:远程库  master：本地的主分支
+		1）master分支是主分支，因此要时刻与远程同步；
+		2）一些修复bug分支不需要推送到远程去，可以先合并到主分支，然后把主分支推送到远程去。
+	（二）、抓取分支
+		git branch --set-upstream dev origin/dev	// 设置本地dev分支与远程origin/dev分支的链接
+		git pull 	// 抓取远程分支代码
+
+	工作模式：
+	1）首先，可以试图用 git push origin branch_name 推送自己的修改；
+	2）如果推送失败，则因为远程分支比你的本地更新早，需要先用 git pull 试图合并；
+	3）如果合并用冲突，则需要解决冲突，并在本地提交。在用 git push origin branch-name 推送。 	
+			
