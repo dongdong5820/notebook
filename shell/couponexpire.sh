@@ -1,5 +1,6 @@
 #!/bin/bash
 # 每秒执行优惠券过期数据脚本
+# ./couponexpire.sh > /dev/null 2>&1
 
 start=$(date +%s)
 startStr=$(date)

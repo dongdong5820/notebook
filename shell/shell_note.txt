@@ -1,0 +1,5 @@
+# 后台执行命令 nohup command
+# 查看后台任务 jobs -l
+# 杀死进程 kill -9 pid
+nohup ping www.baidu.com >> baidu.log 2>&1 &
+
