@@ -85,7 +85,6 @@ mysql > show master status;
 ```
 ![](https://raw.githubusercontent.com/dongdong5820/bedOfImage/master/mysql-repl/master-status.png)
 5） 配置slave的mysql同步信息
-
 ``` shell
 docker exec -it mysql-slave bash
 mysql -uroot -p
@@ -125,8 +124,8 @@ Exec_Master_Log_Pos 回放对应主库的log文件偏移量
 Retrieved_Gtid_Set 备库收到的所有日志的gtid集合
 Executed_Gtid_Set 备库所以已经执行完成的gtid集合
 ```
-Master_Log_File，Read_Master_Log_Pos表示读到主库的最新位点
-Relay_Master_Log_File,Exec_Master_Log_Pos表示备库执行的最新位点
+Master_Log_File，Read_Master_Log_Pos 表示读到主库的最新位点
+Relay_Master_Log_File， Exec_Master_Log_Pos 表示备库执行的最新位点
 
 ##### 1.3.3 用到的其他命令
 ``` shell
@@ -142,3 +141,39 @@ mysql > reset slave;
 DDL（data definition language）数据定义语句：定义或改变表结构，数据类型等。常见命令create,alter,drop等
 DML（data manipulation language）数据操作语句：操作数据库里的数据。常见命令select,update,insert,delete等
 GTID(global transaction identifer)全局事务ID
+### 2. MySQL服务器监控
+#### 2.1 监控指标
+主要参考命令：
+```sql
+show master status;
+show slave status;
+show global status like 'xxx';
+show global variables like 'xxx';
+```
+- 查询吞吐量
+QPS： Com_select，执行select语句的数量
+TPS： Com_insert+Com_update+Com_delete总数
+- 查询执行性能
+performance_schema库：events_statements_summary_by_digest表的指标(微秒为单位)
+慢查询：
+```sql
+show variables like 'long_query_time';
+show global status like 'slow_queries'; # 慢查询数量
+```
+- 连接情况
+```sql
+max_connections 最大连接数
+threads_connected 已经建立的连接
+threads_running 正在运行的连接
+connection_errors_internal 由于服务器内部本身导致的连接错误
+aborted_connects 尝试与服务器建立连接但失败的次数
+connection_errors_max_connections 由于达到最大连接导致连接失败的次数
+```
+- 缓冲池使用情况
+```sql
+innodb_buffer_pool_page_total bp中页总数
+buffer_pool_utilization bp页的使用率
+innodb_buffer_pool_read_requests bp读请求字节数
+innodb_buffer_pool_reads bp读请求次数
+```
+更多想起参数请看 《mysql监控指标.xls》

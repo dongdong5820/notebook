@@ -1,7 +1,6 @@
 ##  MySQL高级
 [mysql在线手册](https://dev.mysql.com/doc/refman/8.0/en/show-profile.html)
-### 1.linux系统安装MySQL
-### 2.索引
+### 1.索引
 - 回表
   基于非主键索引的查询，需要额外扫描主键索引的过程。
 - 覆盖索引
@@ -18,7 +17,7 @@
 ```mysql
 set optimizer_switch = 'index_condition_pushdown=on|off'
 ```
-
+### 2.事务和锁
 ### 3.视图
 #### 3.1 视图概述
   视图(view)是一种虚拟存在的表。并不在数据库中实际存在。通俗的将，视图就是一条select语句执行后返回的结果集。
@@ -522,6 +521,7 @@ drop trigger [schema_name.]trigger_name;
 show triggers;
 ```
 ### 6 体系结构
+#### 6.1 官方体系结构
 ![](https://raw.githubusercontent.com/dongdong5820/bedOfImage/master/mysql/jiegou.jpg)   
 整个MySQL Server由以下组成
 - Connection Pool : 连接池组件
@@ -540,15 +540,16 @@ show triggers;
    存储引擎层，存储引擎真正的负责了MySQL中数据的存储和提取，服务器通过API和存储引擎进行通信。不同的存储引擎具有不同的功能，这样我们就可以根据自己的需要，来选取合适的存储引擎。  
  4）存储层   
    数据存储层，主要是将数据存储在文件系统之上，并完成与存储引擎的交互。 
-<font color='blue'>简化体系结构：</font>  
+#### 6.2 简化体系结构
+![](https://raw.githubusercontent.com/dongdong5820/bedOfImage/master/mysql/simplify-jiegou.png)
+- 查询缓存：mysql8移除改模块
 - 连接器：管理客户端连接，验证权限
-- 查询缓存：
 - 分析器：词法分析，语法分析  -》 得到语法树
-- 预处理器：
 - 优化器：CBO|RBO --》 得到执行计划
+  - CBO(cost-based optimizer) 基于成本的优化器(主要)
+  - RBO(rule-based optimizer) 基于规则的优化器
 - 执行器：执行SQL语句(从存储引擎获取数据)
 - 存储引擎：innodb，myisam，memory
-- 文件系统
 ### 7 存储引擎
 ### 8 优化SQL步骤
   当面对一个有SQL性能问题的数据库时，我们应该从何处入手进行系统的分析，以便能够尽快定位问题SQL并解决问题。  
@@ -705,9 +706,10 @@ key_len: 索引中使用的字节数。该值为索引字段最大可能长度�
 |extra|含义|
 |--|--|
 |using filesort|使用了外部'文件排序'|
-|using temporary|排序时使用了临时表。常见于 order by 和 group by|
+|using temporary|使用了临时表。常见于 order by 和 group by|
 |using index|相应的select使用了覆盖索引，效率不错|
 |using where|使用了where条件|
+|using condition index|使用了索引下推|
 #### 8.4 show profile分析SQL
 支持show profiles 和 show profile语句。帮助我们时间都耗费到哪里去了。了解sql执行的过程。
 ```mysql
@@ -874,5 +876,27 @@ show global status like 'Handler_read%';
 |Handler_read_rnd_next|在数据文件中读下一行的请求数。较高则表索引不正确|
 详细解释见官网  
 [server status varibles](https://dev.mysql.com/doc/refman/5.7/en/server-status-variables.html#statvar_Handler_read_first)
-
 ### 10 SQL优化
+#### 10.1 性能监控
+##### 10.1.1 show staus
+##### 10.1.2 show profile
+##### 10.1.3 show processlist
+##### 10.1.4 performance schema监控mysql
+#### 10.2 schema与数据类型优化
+##### 10.2.1 数据类型优化
+##### 10.2.2 范式和反范式
+##### 10.2.3 主键的选择
+##### 10.2.4 字符集的选择
+##### 10.2.5 存储引擎的选择
+##### 10.2.6 适当的数据冗余
+##### 10.2.7 适当拆分
+垂直拆分
+水平拆分
+#### 10.3 执行计划优化
+#### 10.4 通过索引优化
+#### 10.5 查询优化
+information_schema数据库
+schemata表(memory)：所有数据库。 show databases；
+tables表(memory)：所有表。show tables from dbname;
+colums表(myisam) : 所有列。show colums tablename;
+statistics表(memory) : 索引。 show index from tablename;
