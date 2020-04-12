@@ -65,7 +65,6 @@ save指令相关配置：
 ##### 2.2.2 bgsave命令
 作用：手动启动后台保存操作，但不是立即执行。 <font color='red'>后台执行</font>   
 工作原理：
-
 ```text
 1、发送指令bgsave
 2、返回消息(Backgroud saving started)，调用系统fork函数生成子进程
@@ -73,7 +72,6 @@ save指令相关配置：
 ```
 PS：bgsave命令是针对save阻塞问题做的优化。redis内部所有涉及到rdb操作都采用bgsave方式  
 相关配置：
-
 ```shell
 # 后台存储过程中如果出现错误，是否终止保存操作
 stop-writes-on-bgsave-error yes
@@ -84,7 +82,8 @@ stop-writes-on-bgsave-error yes
 ```shell
 save second changes
 ```
-作用：满足限定时间second范围内key的变化数量达到指定数量changes即进行持久化  
+作用：  
+  满足限定时间second范围内key的变化数量达到指定数量changes即进行持久化  
 参数：  
 ```text
 second： 监控时间范围
@@ -96,9 +95,49 @@ save 900 1
 save 300 10
 save 60 10000
 ```
-
+注意：  
+  save配置中对于second与changes设置通常具有互补对应关系，尽量不要设置成包含关系；  
+  save配置启动后执行的是bgsave操作  
+##### 2.2.4 三种启动方式对比
+| 方式           | save指令 | bgsave指令(save配置) |
+| -------------- | -------- | -------------------- |
+| 读写           | 同步     | 异步                 |
+| 阻塞客户端指令 | 是       | 否                   |
+| 额外内存消耗   | 否       | 是                   |
+| 启动新进程     | 否       | 是                   |
+##### 2.2.5 RDB优缺点
+- 优点：
+	- 压缩的二进制文件，存储效率高
+	- 保存的是redis在某个时间节点的快照，非常适合于数据备份，全量复制
+	- RDB恢复速度比AOF快很多
+	- 应用：每X小时执行bgsave备份，并将RDB文件拷贝至远程服务器，用户灾难恢复
+- 缺点：
+	- 无法实施持久化，丢失数据可能性大 
+	- 存储数据量大，效率低
+	- 大数据量下IO性能较低
+	- 基于fork创建子进程，产生内存额外消耗
+	- redis众多版本对rdb文件格式未统一，数据格式不兼容
 #### 2.3 AOF
+##### 2.3.1 简介及策略基本操作
+**AOF概念**  
+  以独立日志的方式记录每次写命令。记录数据产生的过程。解决了redis数据持久化时效性问题。  
+**AOF写数据过程**
+  写命令 --> AOF写命令刷新缓冲区-->.aof文件  
+**三种写策略(appendfsync)**
+- always(每次)： 每次写入操作同步到AOF文件
+- everysec(每秒)： 每秒将缓冲区的指令同步到AOF文件中。最多丢失1秒的数据
+- no(系统控制)：由操作系统控制同步到AOF文件的周期
+**配置**
+```shell
+appendonly yes|no  # 默认不开启
+appendfsync always|everysec|no # 同步策略
+appendfilename filename aof文件名
+```
+##### 2.3.2 重写概念与命令
+
+##### 2.3.3 自动重写
 #### 2.4 RDB和AOF区别
+
 #### 2.5 持久化应用场景
 ### 3. 事务
 
