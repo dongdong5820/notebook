@@ -2,7 +2,6 @@
 #### 1.1简介
    主从复制即将master节点数据及时，有效地复制到slave中。
 **作用**
-
 ```text
 1、读写分离：master写，slave读
 2、负载均衡：slave分担master负载，提高redis服务器并发量和吞吐量
@@ -290,4 +289,172 @@ redis-server /usr/local/redis/conf/6380.conf
 kill -9 $(ps -ef | grep redis-server | grep -Ev 'usr|grep' | awk '{print $2}')
 ```
 ### 3.集群
+#### 3.1概念
+
+#### 3.2集群搭建
+##### 3.2.1步骤
+1、设置6380-6385的配置文件
+```shell
+# 设置6380配置文件
+cd /usr/local/redis/conf
+vim 6380.conf
+bind 127.0.0.1
+port 6380
+daemonize yes
+pidfile /var/run/redis_6380.pid
+dir /data/redis
+logfile "6380.log"
+dbfilename dump-6380.rdb
+rdbcompression yes
+rdbchecksum yes
+save 900 1
+save 300 10
+save 60 10000
+appendonly yes
+appendfsync everysec
+appendfilename appendonly-6380.aof
+cluster-enabled yes
+cluster-config-file node-6380.conf
+cluster-node-timeout 10000
+# 批量替换生成6381-6385配置文件
+sed 's/6380/6381/g' 6380.conf > 6381.conf
+sed 's/6380/6382/g' 6380.conf > 6382.conf
+sed 's/6380/6383/g' 6380.conf > 6383.conf
+sed 's/6380/6384/g' 6380.conf > 6384.conf
+sed 's/6380/6385/g' 6380.conf > 6385.conf
+```
+2、启动6380-6385服务器
+```shell
+redis-server /usr/local/redis/conf/6380.conf
+redis-server /usr/local/redis/conf/6381.conf
+redis-server /usr/local/redis/conf/6382.conf
+redis-server /usr/local/redis/conf/6383.conf
+redis-server /usr/local/redis/conf/6384.conf
+redis-server /usr/local/redis/conf/6385.conf
+ps -ef | grep redis
+# 显示[cluster]信息
+```
+3、准备集群搭建的环境
+```shell
+# ubuntu系统
+apt-get update # 获取最新的软件包列表
+apt-get install ruby
+apt-get install rubygems
+# centos系统
+yum install ruby
+yum install rubygems
+# 检查是否安装成功
+ruby -help
+gem --help
+```
+4、创建集群
+```shell
+cd /usr/local/redis/src
+./redis-trib.rb create --replicas 1 127.0.0.1:6380 127.0.0.1:6381 127.0.0.1:6382 127.0.0.1:6383 127.0.0.1:6384 127.0.0.1:6385
+```
+创建集群命令： <font color='red'>redis-trib.rb create --replicas n</font>
+##### 3.2.2配置及命令
+配置
+```shell
+# 设置加入cluster，成为其中的节点
+cluster-enabled yes|no
+# cluster配置文件名，该文件自动生成
+cluster-config-file <filename>
+# 节点服务响应超时时间
+cluster-node-timeout <milliseconds>
+# master连接的slave最小数量
+cluster-migration-barrier <count>
+```
+命令
+```shell
+# 创建集群
+cd /usr/local/redis/src
+./redis-trib.rb create --replicas 1 127.0.0.1:6380 127.0.0.1:6381 127.0.0.1:6382 127.0.0.1:6383 127.0.0.1:6384 127.0.0.1:6385
+  --replicas 1:代表一个主节点配置一个从节点
+# 查看集群信息
+cluster info
+# 查看集群节点信息
+cluster nodes
+# 进入一个从节点redis，切换其主节点
+cluster replicate <master-id>
+# 发现一个新节点，新增主节点
+cluster meet ip:port
+# 忽略一个没有slot的节点
+cluster forget <id>
+# 手动故障移除
+cluster failover
+# 连接集群(-c 选项可以自动定位到slot)
+redis-cli -c -p 6380
+```
 ### 4.企业级解决方案
+**解决方案（道）**
+```text
+1、页面静态化处理
+2、构建多级缓存
+	cdn+nginx缓存+应用服务器缓存(文件)+redis缓存
+3、检测mysql严重耗时的业务进行优化
+	对数据库瓶颈排查，超时查询，耗时较高事务
+4、灾难预警机制
+	监控redis服务器性能指标(cpu占用，cpu使用率，内存容量，平均响应时间，线程数...)
+5、限流、降级
+	限制一部分请求访问，降低服务器压力，待业务低速运转后再逐步放开访问
+```
+#### 4.1缓存预热
+  系统启动前，提前将相关的缓存数据加载到缓存系统。用户查询事先预热的缓存数据，减少数据库服务压力。
+```text
+方案：
+1、根据业务数据分类，redis优先加载级别较高的热点数据
+2、使用脚本程序固定触发数据预热过程
+```
+#### 4.2缓存雪崩
+  在一个<font color='red'>较短</font>的时间内，缓存中<font color='red'>较多</font>的key<font color='red'>集中过期</font>。
+```text
+解决方案：
+1、根据业务数据进行分类错峰，A类40分钟，B类30分钟，C类20分钟
+2、过期时间采用‘固定时间+随机值’，稀释集中过期的key的数量
+3、超热数据使用永久key
+4、自动+人工定期维护，
+```
+#### 4.3缓存击穿
+  <font color='red'>单个高热数据过期</font>瞬间，数据访问量大，redis为命中，导致数据库服务器压力过大。高热key在数据库中是存在的。
+```text
+解决方案：
+1、后台刷新数据
+	启动定时任务，高峰期来临之前刷新数据有效期
+2、设置不同的失效时间，保障不会被同时淘汰
+```
+#### 4.4缓存穿透
+  访问了<font color='red'>不存在的数据</font>，跳过了合法数据的redis缓存阶段，每次都访问数据库，导致数据库压力大。
+```text
+解决方案：
+1、缓存null值
+2、白名单策略
+	加入IP白名单，限制IP黑名单； 布隆过滤器；
+3、实时监控redis命中率，出现异常则告警
+4、key加密
+	缓存击穿问题出现后，启动防灾业务key，在业务层校验key是否合法
+```
+#### 4.5性能指标监控
+| Name                                     | Description                           |
+| ---------------------------------------- | ------------------------------------- |
+| **performance**                              | **性能指标**                              |
+| latency                                  | redis响应一个请求的时间               |
+| instantaneous_ops_per_sec                | 平均每秒处理请求数                    |
+| hit rate(keyspace hits, keyspace_misses) | 缓存命中率(计算得出)                  |
+| **memory**                                   | **内存指标**                              |
+| used_memory                              | 已使用内存                            |
+| mem_fragmentation_ratio                  | 内存碎片率                            |
+| evicted_keys                             | 由于最大内存限制被移除key的数量       |
+| **basic activity**                           | **基本活动指标**                          |
+| connected_clients                        | 客户端连接数                          |
+| connected_slaves                         | 连接的slave数量                       |
+| master_last_io_seconds_ago               | 最近一次主从交互之后的秒数            |
+| keyspace                                 | 数据库中key的总数量                   |
+| **persistence**                              | **持久化指标**                            |
+| rdb_last_save_time                       | 最后一次持久化保存到磁盘的时间戳      |
+| rdb_changes_since_last_save              | 自最后一次持久化以来数据库的更改次数  |
+| **error**                                    | **错误指标**                              |
+| rejected_connections                     | 由于达到maxclient限制而被拒绝的连接数 |
+| keyspace_misses                          | 没有命中次数                          |
+| master_link_down_since_seconds           | 主从断开的持续时间(秒)                |
+
