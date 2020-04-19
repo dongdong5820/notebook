@@ -6,6 +6,51 @@
 ### 4.流程控制
 ### 5.函数
 ### 6.正则表达式
+#### 6.1字符匹配
+```shell
+# posix字符
+[:alnum:] : 字母数字[a-z A-Z 0-9]
+[:alpha:] :字母[a-z A-Z]
+[:blank:] : 空格或制表符
+[:digit:] : 数字[0-9]
+[:lower:] : 小写字母[a-z]
+[:upper:] : 大写字母[A-Z]
+[:space:] : 空格
+```
+```shell
+# 特殊字符
+\w : 匹配任意数字和字母，等效[a-zA-Z0-9_]
+\W : 和\w相反，等效[^a-zA-Z0-9_]
+\b : 匹配字符串开始或结束，等效\<和\>
+\s : 匹配任意的空白字符
+\S : 匹配非空白字符
+```
+#### 6.2次数匹配
+  用在指定字符后面，表示指定前面的字符出现次数。默认工作在贪婪模式下，?取消贪婪模式。
+```shell
+* : 任意次数(0或多次)
+? : 0或1次
++ : 1次或多次
+{m,} : 至少m次
+{m,n} : m到n次
+{,n} :最多n次
+```
+#### 6.3位置锚定
+```shell
+^ : 行首锚定
+$ : 行尾锚定
+\< : 锚定单词首部
+\> : 锚定单词尾部
+```
+eg:
+```shell
+^$ : 锚定空行
+```
+#### 6.4分组引用
+```shell
+(..) : 将一个或多个字符当做一个整体进行后续处理
+*1,\1 : 引用第一个()内的字符
+```
 ### 7.文本三剑客
 #### 7.1 grep
 ##### 概念
@@ -94,13 +139,126 @@ last | grep -E -o "([[:digit:]]{1,3}.){3}[[:digit:]]{1,3}" |sort |uniq -c |sort 
 ##### 概念
   sed(Stream EDitor)，流式编辑。<font color='red'>文本处理工具</font>。可处理，编辑文本文件。
 ##### 语法格式
+```shell
+sed [options]... 'script' [inputfile] ...
+```
+处理机制：
+```text
+1)读：sed从输入流(文件，管道或标准输入)读入一行，将其存储在临时缓冲区(模式空间)中。
+2)执行：对缓冲区中的内容按照指定的命令script进行处理，完成后输出到屏幕。
+3)重复：重复执行1)2)步骤直到文件结束。
+```
+###### 常见选项
+```shell
+-n(--quiet,--silent) : 不输出模式空间内容到屏幕，即不自动打印
+-e <script> : 以指定的script来处理文本文件
+-f <script-file> : 以指定的脚本文件来处理文本文件
+-r : 使用扩展正则表达式
+-i.bak : 备份文件并远处编辑
+```
+###### script命令
+地址定界：
+```shell
+start,end : 从start行到end行
+/regexp/ : 正则表达式
+/pattern1/,/pattern2/ : 从第一次被pattern1匹配的行开始，直到被pattern2匹配的行结束
+linenumber : 指定行号
+start,+n : 从start行开始，向后n行结束
+start~step : 步长，从start开始，每隔step步
+```
+命令操作：
+```shell
+d : 删除符合条件的行
+p : 打印符合条件的行
+a[\]text : 在指定行后面追加文本，支持使用\n实现多行追加
+i[\]text : 在行前面插入文本
+c[\]text : 替换单行或多行文本
+w /path/file : 保存模式匹配的行至指定文件
+r /path/file : 读取指定文件的文本内容添加至模式空间中匹配到的行后
+= : 为模式空间中的行打印行号
+! : 模式空间中匹配行取反处理
+s : 's/pattern/string/修饰符'查找并替换，默认只替换每行中第一次被匹配到的字符串
+```
+修饰符：
+```shell
+g : 全局替换
+i : 忽略字符大小写
+```
+匹配元字符：
+```shell
+^ : 行首，如/^sed/匹配所有以sed开头的行
+$ : 行尾，如/sed$/匹配所有以sed结尾的行。
+. : 匹配一个非换行符的任意字符，如/s.d/匹配s后接一个任意字符，最后是d。
+* : 匹配其前面0个或多个字符
+[] : 指定范围的字符
+[^] : 除指定范围以外的字符
+(..) : 匹配子串，保存匹配的字符。如s/(love)able/\1rs/g替换成lovers
+& : 保存搜索字符，如s/love/**&**替换成**love**
+\< : 匹配单词的开始
+\> : 匹配单词的结束
+x\{m\} : x重复出现m次
+x\{m,\} : x至少出现m次
+x\{m,n\} : x出现m到n次
+x\{,n\} : x最多出现n次
+```
 ##### 举例
+###### 1位置
+```shell
+# 输出奇数行
+seq 10 | sed -n '1~2p'
+# 输出2-5行
+sed -n '2,5p' /etc/services
+# 输出最后一行
+sed -n '$p' /etc/services
+```
+###### 2插入替换行
+a.txt文件内容
+```shell
+123
+456
+789
+101112
+```
+```shell
+# 在第二行前面插入hello
+sed '2ihello' a.txt
+# 在第二行后面插入hello
+sed '2ahello' a.txt
+# 将第二行替换成hello
+sed '2chello' a.txt
+# 删除第二行
+sed '2d' a.txt
+# 删除/etc/nginx/nginx.conf文件中注释行
+sed -r '/^[[:space:]]*#/d' /etc/nginx/nginx.conf
+```
+###### 3匹配替换字符
+```shell
+# 输出/etc/services文件中以zabbix开头的行
+sed -n '/^zabbix/p' /etc/services
+# 删除/etc/nginx/nginx.conf文件行首的空格
+sed -r 's/^[[:space:]]+//g' /etc/nginx/nginx.conf
+# 将文件中的6380全部替换成6381
+sed 's/6380/6381/g' /usr/local/redis/conf/6380.conf
+# 向后引用
+echo 'loveable' | sed -r 's/(love)able/\1rs/g'
+```
+###### 4将日志文件中的时间转换成时间戳并输出
+error.log(mysql的错误日后)
+```text
+2020-04-19T07:07:11.547706Z 0 [Warning] Changed limits: max_open_files: 1024 (requested 5000)
+2020-04-19T07:07:11.556476Z 0 [Warning] Changed limits: table_open_cache: 431 (requested 2000)
+2020-04-19T07:07:13.484622Z 0 [Warning] TIMESTAMP with implicit DEFAULT value is deprecated. Please use --explicit_defaults_for_timestamp server option (see documentation for more details).
+```
+```shell
+date -d "2020-04-19 07:07:14" +s
+sed -r 's@(.*)T(.*)\.(.*)Z(.*)@\1 \2@g' error.log | sed -r '/^[[:digit:]]/!d'
+```
 #### 7.3 awk
 ##### 概念
    <font color='red'>优良的文本处理工具</font>。这种编程和及数据操作语言(其名称来自于创始人Alfred Aho 、Peter Weinberger 和 Brian Kernighan姓氏的首个字母)最大功能取决于一个人所拥有的知识。
 ##### 语法格式
 ```shell
-awk [options] 'BEGIN{commands} /partern/{command1;command2} END{commands}' file1,file2...
+awk [options] 'BEGIN{commands} /pattern/{command1;command2} END{commands}' file1,file2...
 ```
 处理机制：
 ```text
@@ -121,8 +279,8 @@ awk [options] 'BEGIN{commands} /partern/{command1;command2} END{commands}' file1
   BEGIN{commands}
   awk程序启动时(在处理输入流之前)执行，整个过程只执行一次；BEGIN关键字必须大写，开始块是可选项。
 # 主体块(Body)
-  /partern/{command1;command2}
-  对于输入的每一行，都会执行一次主体部分命令。可通过/partern/过滤一些行。
+  /pattern/{command1;command2}
+  对于输入的每一行，都会执行一次主体部分命令。可通过/pattern/过滤一些行。
 # 结束块(End)
   END{commands}
   awk程序结束时(处理完输入流之后)执行，整个过程只执行一次；END关键字必须大写，结束块是可选项。
@@ -198,7 +356,7 @@ function_name(arg1,arg2...)
 selection ? if-true-expression : if-false-expression
 awk -F: '{$3>=100?usertype="common user":usertype="sysadmin";printf "%15s:%s\n",usertype,$1}' /etc/passwd
 ```
-###### 匹配模式partern
+###### 匹配模式pattern
 ```shell
 # empty：空模式，匹配每一行
 # /regular exprssion/ : 仅处理被模式匹配到的行
