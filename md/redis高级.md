@@ -148,6 +148,7 @@ appendfilename filename #aof文件名
 3、数据恢复用时，提高数据恢复效率
 ```
 **重写规则**
+
 ```text
 1、进程内已超时的数据不再写入文件
 2、忽略无效指令。重写时使用进程内的数据直接生成，aof文件只保留最终数据的写入命令
@@ -179,6 +180,7 @@ auto-aof-rewrite-percentage 100
 ```
 ​    redis会在aof文件比上次完成重写后aof文件的容量大至少100%，且aof文件容量大于64mb时开启一个`bgrewriteaof`进程。
 2、触发比对参数(运行指令`info persistence`可获取详情)
+
 ```shell
 aof_current_size # 当前aof文件大小
 aof_base_size # 上一次完成重写后aof文件大小
@@ -305,8 +307,8 @@ expires数据集：存储所有设置了过期时间的key
 ##### 4.2.3 定期删除
 - 流程
 ```text
-1、redis启动服务器初始化时，读取配置serve.hz的值(`info server`查看)，默认为10
-2、每秒钟执行sever.hz次`serverCron()`->`databasesCron()`->`activeExpireCycle()`
+1、redis启动服务器初始化时，读取配置server.hz的值(`info server`查看)，默认为10
+2、每秒钟执行server.hz次`serverCron()`->`databasesCron()`->`activeExpireCycle()`
 3、activeExpireCycle对每个expires[*]逐一检测，每次执行250ms/server.hz时长
 4、对某个expires[*]检测时，随机挑选W个key检测
 	1）若key过期，删除key
@@ -346,7 +348,7 @@ maxmemory-policy
 ```
 ##### 4.3.3 逐出|淘汰策略
 - 会过期的数据集server.db[i].expires
-	- 1.volatile-lru：最近最少使用的数据淘汰
+	- 1.volatile-lru：最近最少使用的数据淘汰(距离当前最长时间未使用的key)
 	- 2.volatile-lfu：最近使用次数最少的数据淘汰
 	- 3.volatile-ttl：更早过期时间的数据淘汰
 	- 4.volatile-random：过期数据随机淘汰

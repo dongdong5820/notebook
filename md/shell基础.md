@@ -57,10 +57,10 @@ eg:
    grep(global search regular expression(RE) and print out the line，全面搜索正则表达式并把行打印出来)是一种强大的<font color='red'>文本搜索工具</font>，它能使用正则表达式搜索文本，并把匹配的行打印出来。
 ##### 语法格式
 ```shell
-grep [option] ... pattern [file]
+grep [option] ... pattern [file]...
 grep --help # 查看帮助
 ```
-##### 选项
+##### 选项option
 ```text
 -v : 反向选择，显示没有匹配到内容的行
 -o : 仅显示匹配到的字符
@@ -83,7 +83,7 @@ grep --help # 查看帮助
 --exclude : 排除文件
 --exclude-dir : 排除目录
 ```
-##### 模式(正则)
+##### 模式(正则-pattern)
 元字符：
 ```text
 . : 匹配任意单个字符
@@ -134,13 +134,15 @@ netstat -anl | grep -w 80
 grep -Ev '^$|^#' /etc/redis/redis.conf
 # 统计最近远程登录本机的ip地址，按数量倒序
 last | grep -E -o "([[:digit:]]{1,3}.){3}[[:digit:]]{1,3}" |sort |uniq -c |sort -r
+# 筛选ipv4地址(从ifconfig命令中筛选出除lo网卡之外的所有ipv4地址)
+ifconfig | grep -Eo 'inet[[:space:]](.*)netmask' | grep -v 127 | grep -Eo '([[:digit:]]{1,3}.){3}[[:digit:]]{1,3}'
 ```
 #### 7.2 sed
 ##### 概念
   sed(Stream EDitor)，流式编辑。<font color='red'>文本处理工具</font>。可处理，编辑文本文件。
 ##### 语法格式
 ```shell
-sed [options]... 'script' [inputfile] ...
+sed [option]... 'script' [inputfile] ...
 ```
 处理机制：
 ```text
@@ -148,7 +150,7 @@ sed [options]... 'script' [inputfile] ...
 2)执行：对缓冲区中的内容按照指定的命令script进行处理，完成后输出到屏幕。
 3)重复：重复执行1)2)步骤直到文件结束。
 ```
-###### 常见选项
+###### 常见选项option
 ```shell
 -n(--quiet,--silent) : 不输出模式空间内容到屏幕，即不自动打印
 -e <script> : 以指定的script来处理文本文件
@@ -202,7 +204,7 @@ x\{m,n\} : x出现m到n次
 x\{,n\} : x最多出现n次
 ```
 ##### 举例
-###### 1位置
+###### 1.位置
 ```shell
 # 输出奇数行
 seq 10 | sed -n '1~2p'
@@ -211,7 +213,7 @@ sed -n '2,5p' /etc/services
 # 输出最后一行
 sed -n '$p' /etc/services
 ```
-###### 2插入替换行
+###### 2.插入替换行
 a.txt文件内容
 ```shell
 123
@@ -231,7 +233,7 @@ sed '2d' a.txt
 # 删除/etc/nginx/nginx.conf文件中注释行
 sed -r '/^[[:space:]]*#/d' /etc/nginx/nginx.conf
 ```
-###### 3匹配替换字符
+###### 3.匹配替换字符
 ```shell
 # 输出/etc/services文件中以zabbix开头的行
 sed -n '/^zabbix/p' /etc/services
@@ -240,9 +242,9 @@ sed -r 's/^[[:space:]]+//g' /etc/nginx/nginx.conf
 # 将文件中的6380全部替换成6381
 sed 's/6380/6381/g' /usr/local/redis/conf/6380.conf
 # 向后引用
-echo 'loveable' | sed -r 's/(love)able/\1rs/g'
+echo 'loveable' | sed -r 's/(love)able/\1in/g'
 ```
-###### 4将日志文件中的时间转换成时间戳并输出
+###### 4.将日志文件中的时间转换成时间戳并输出
 error.log(mysql的错误日后)
 ```text
 2020-04-19T07:07:11.547706Z 0 [Warning] Changed limits: max_open_files: 1024 (requested 5000)
@@ -253,12 +255,18 @@ error.log(mysql的错误日后)
 date -d "2020-04-19 07:07:14" +s
 sed -r 's@(.*)T(.*)\.(.*)Z(.*)@\1 \2@g' error.log | sed -r '/^[[:digit:]]/!d'
 ```
+###### 5.筛选ipv4地址
+```shell
+# 从ifconfig命令中筛选出除lo网卡之外的所有ipv4地址(ubuntu系统)
+ifconfig | sed -En '/inet[[:space:]]/{s/inet[[:space:]]//;p}' | sed -n '/127.0/!{s/netmask.*$//;p}'
+ifconfig | sed -En '/inet[[:space:]]/{s/inet[[:space:]](.*)netmask.*$/\1/;p}' | grep -v 127
+```
 #### 7.3 awk
 ##### 概念
    <font color='red'>优良的文本处理工具</font>。这种编程和及数据操作语言(其名称来自于创始人Alfred Aho 、Peter Weinberger 和 Brian Kernighan姓氏的首个字母)最大功能取决于一个人所拥有的知识。
 ##### 语法格式
 ```shell
-awk [options] 'BEGIN{commands} /pattern/{command1;command2} END{commands}' file1,file2...
+awk [option] 'BEGIN{commands} /pattern/{command1;command2} END{commands}' file1,file2...
 ```
 处理机制：
 ```text
@@ -267,7 +275,7 @@ awk [options] 'BEGIN{commands} /pattern/{command1;command2} END{commands}' file1
 2)执行：对于每一行，所有awk命令按顺序执行。匹配模式进行过滤。
 3)重复：重复1)2)两步直到文件结束。
 ```
-###### 选项
+###### 选项option
 ```shell
 -F ：指定分隔符
 -f ：调用awk脚本

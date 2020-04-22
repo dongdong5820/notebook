@@ -87,7 +87,7 @@ slave-serve-stale-data yes|no
 2、偏移量(offset)+字节值
 3、master通过不同的offset区分不同slave当前数据传播的差异
 4、master记录已发送信息对应的offset
-5、slave记录已接受信息对饮的offset
+5、slave记录已接受信息对应的offset
 ```
 ###### 复制偏移量(offset)
 ```text
@@ -324,6 +324,7 @@ sed 's/6380/6384/g' 6380.conf > 6384.conf
 sed 's/6380/6385/g' 6380.conf > 6385.conf
 ```
 2、启动6380-6385服务器
+
 ```shell
 redis-server /usr/local/redis/conf/6380.conf
 redis-server /usr/local/redis/conf/6381.conf
@@ -332,9 +333,11 @@ redis-server /usr/local/redis/conf/6383.conf
 redis-server /usr/local/redis/conf/6384.conf
 redis-server /usr/local/redis/conf/6385.conf
 ps -ef | grep redis
+root      9445     1  0 10:14 ?        00:00:00 redis-server 127.0.0.1:6380 [cluster]
 # 显示[cluster]信息
 ```
 3、准备集群搭建的环境
+
 ```shell
 # ubuntu系统
 apt-get update # 获取最新的软件包列表
@@ -345,12 +348,25 @@ yum install ruby
 yum install rubygems
 # 检查是否安装成功
 ruby -help
+ruby -v
+ruby 2.5.1p57 (2018-03-29 revision 63029) [x86_64-linux-gnu]
 gem --help
+gem -v
+2.7.6
 ```
 4、创建集群
 ```shell
 cd /usr/local/redis/src
 ./redis-trib.rb create --replicas 1 127.0.0.1:6380 127.0.0.1:6381 127.0.0.1:6382 127.0.0.1:6383 127.0.0.1:6384 127.0.0.1:6385
+# 若报如下错误，说明缺少redis库
+/usr/lib/ruby/2.5.0/rubygems/core_ext/kernel_require.rb:59:in `require': cannot load such file
+# 下载redis库
+gem install redis
+# 再次创建集群，输出下面内容，说明集群创建成功
+[OK] All nodes agree about slots configuration.
+>>> Check for open slots...
+>>> Check slots coverage...
+[OK] All 16384 slots covered.
 ```
 创建集群命令： <font color='red'>redis-trib.rb create --replicas n</font>
 ##### 3.2.2配置及命令
@@ -400,7 +416,7 @@ redis-cli -c -p 6380
 	限制一部分请求访问，降低服务器压力，待业务低速运转后再逐步放开访问
 ```
 #### 4.1缓存预热
-  系统启动前，提前将相关的缓存数据加载到缓存系统。用户查询事先预热的缓存数据，减少数据库服务压力。
+  系统启动前，提前将相关的数据加载到缓存系统。用户查询事先预热的缓存数据，减少数据库服务压力。
 ```text
 方案：
 1、根据业务数据分类，redis优先加载级别较高的热点数据
