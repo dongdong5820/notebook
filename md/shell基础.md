@@ -467,3 +467,5 @@ netstat -anl 2>/dev/null | awk '/^tcp/{arr[$6]++}END{for(i in arr){print i"\t"ar
 awk '$8!=200{arr[$1]++}END{for(i in arr){print arr[i],i}}' access.log | sort -k1nr | head -n 10
 ```
 ### 8.shell杂项
+#### linux性能分析命令
+https://man.linuxde.net/vmstat

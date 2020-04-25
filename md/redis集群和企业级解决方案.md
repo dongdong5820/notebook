@@ -284,7 +284,10 @@ redis-server /usr/local/redis/conf/6380.conf
 	3)优选新master
 	4)新master上任，其他slave切换master，原master作为slave故障恢复后连接
 ```
+##### 2.3.4 相关命令
 ```shell
+# 手动故障转移(需连接到哨兵客户端)
+sentinel failover mymaster
 # 杀掉所有redis-server进程
 kill -9 $(ps -ef | grep redis-server | grep -Ev 'usr|grep' | awk '{print $2}')
 ```
