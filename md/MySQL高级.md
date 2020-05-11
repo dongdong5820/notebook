@@ -1,20 +1,157 @@
 ##  MySQL高级
 [mysql在线手册](https://dev.mysql.com/doc/refman/8.0/en/show-profile.html)
 ### 1.索引
-- 回表
-  基于非主键索引的查询，需要额外扫描主键索引的过程。
-- 覆盖索引
-  索引覆盖了查询语句需要的所有字段，无需回表的过程。 
-- 最左前缀匹配
-  复合索引检索数据时，从左边开始依次匹配。
-- 索引下推(索引条件下推-index condition pushdown|ICP)
-  - mysql5.6引入索引下推
-  - 储存引擎在索引遍历过程中，对索引中包含的字段先做判断，直接过滤掉不满足条件的记录，减少IO次数
-  - 适用于innodb,myisam引擎，innodb聚簇索引不能下推
-  - explain执行计划中的extra有using index condition表示使用了索引下推。
-  - 开启或关闭索引下推。默认开启。
-```mysql
-set optimizer_switch = 'index_condition_pushdown=on|off'
+#### 1.1 索引常见名词
+```text
+1、回表
+	基于非主键索引的查询，需要额外扫描主键索引的过程
+2、覆盖索引(索引覆盖)
+	索引覆盖了查询语句需要的所有字段，无需回表的过程。explain中extra显示useing index表示使用了索引覆盖
+3、最左前缀匹配
+	复合索引检索数据时，从左边开始依次匹配
+4、索引下推
+	1)mysql5.6引入索引下推
+	2)储存引擎在索引遍历过程中，对索引中包含的字段先做判断，直接过滤掉不满足条件的记录，减少IO次数
+	3)适用于innodb,myisam引擎，innodb聚簇索引不能下推
+	4)explain执行计划中的extra有using index condition表示使用了索引下推
+	5)开启或关闭索引下推。默认开启
+	6)set optimizer_switch = 'index_condition_pushdown=on|off'
+```
+#### 1.2 行格式
+##### 1.2.1 行格式历史
+```text
+Antelope：早期innodb文件格式，支持compact和redundant
+Barracuda：新的innodb文件格式(5.7版本)，支持dynamic和compressed
+```
+```sql
+-- 查看innodb引擎版本，引擎文件格式，表的行格式
+show variables like '%innodb_version%';
+show variables like '%innodb_file_format%';
+show table status like 't'\G
+```
+##### 1.2.2 行格式结构
+compact行格式如下，dynamic基于compact进行了优化，结构一样。处理行溢出有区别。
+![](https://raw.githubusercontent.com/dongdong5820/bedOfImage/master/mysql/msyql-row-format.png)
+- 变长字段长度列表
+```text
+用户存储数据里面的可变长度(varvhar,text,blob等)，存储的是其真实长度
+1)字段逆序存放。varchar(M)，M代表最大能存多少个字符(5.0.3前是字节，以后是字符)
+2)存储的最大长度是2个字节，即最大存储范围是2^16=65536，超过即发生行溢出
+3)若字段是char固定长度，但是字符集是utf8这类可变字符集，则仍属于可变长字段
+4)若所有列都是固定长度，且字符集是固定长度字符集(如ascii)，则变长字段长度列表不存在
+```
+- NULL标志位
+```text
+统计NULL值都有哪些列
+1)字段逆序存放
+2)有NULL则标志为1(not null,主键列不会存储)
+3)若全部列都是not null，则该标志位不存在
+```
+- 记录头信息
+```text
+固定5字节，描述记录的头信息
+```
+| 名称         | 大小(bit位) | 描述          |
+| ------------ | ----------- | ------- |
+| 预留位1和2   | 1           | 没有使用  |
+| delete_mask  | 1           | 标记该记录是否被删除 |
+| min_rec_mask | 1           | 该记录是否为B+树的非叶子节点中的最小记录 |
+| n_owned      | 4           | 当前槽管理的记录数|
+| heap_no      | 13          | 当前记录在记录堆的位置信息  |
+| record_type  | 3           | 当前记录的类型。0-普通记录，1-B+树非叶子节点记录，2-最小记录，3-最大记录 |
+| next_record  | 16          | 下一条记录的相对位置 |
+- 数据列(真实数据)
+- 隐藏列
+```text
+1)row_id：主键列，6字节
+2)transcation_id：事务ID，6字节
+3)roll_pointer：回滚指针，7字节
+  一个表没有手动定义主键，则会选取一个unique键作为主键。若unique键都没有，则会默认添加一个名为row_id的隐藏列作为主键。故row_id在没有自定义主键及unique键的情况下才会存在。
+```
+##### 1.2.3 行溢出
+```text
+定义：innodb存储varchar,text,blob等可变长度的时候，若存储数据超过行记录的最大长度65536字节时，会选择外部溢出页来存储。
+处理方式：
+1)compact和redundant：存储真实数据的前768字节+20字节指针(指向外部溢出页)
+2)dynamic和compressed：存储20字节指针(指向外部溢出页)
+```
+#### 1.3 InnoDB数据页
+##### 1.3.1 定义
+```text
+1)定义：内存和磁盘交互的基本单位。大小为16K
+2)类型：索引页，Undo页，Inode页，系统页，Blob页等。一般提到数据页都指代索引页
+```
+```sql
+-- 查看数据页大小
+show status like 'Innodb_page_size';
+```
+##### 1.3.2 页结构
+![](https://raw.githubusercontent.com/dongdong5820/bedOfImage/master/mysql/mysql-page.png)
+| 名称     | 中文名   | 占用空间 | 描述 |
+| ------| ----- | -------- | ---------------- |
+| File Header | 文件头部| 38字节|页外的通用信息，如页编号，上一页，下一页编号... |
+| Page Header | 页头部 | 56字节|页内的状态信息，如有多少记录，有多少个槽...     |
+| Infimum+Supremum | 最小最大记录 | 26字节   | 两个虚拟的行记录 |
+| User Records     | 用户记录     | 不确定   | 实际存储的行记录内容 |
+| Free Space       | 空闲空间     | 不确定   | 页中尚未使用的空间   |
+| Page Directory   | 页目录       | 不确定   | 页中的记录相对位置 |
+| File Trailer     | 文件尾部     | 8字节    | 校验页是否完整   |
+详细介绍
+- File Header
+```text
+文件头部，描述页外的各种状态，所有数据页组成一个双向链表。
+1)FIL_PAGE_SPACE_OR_CHKSUM：4字节，当前页的校验和(checksum)
+2)FIL_PAGE_OFFSET：4字节，页号(页编号)
+3)FIL_PAGE_PREV：4字节，上一页编号
+4)FIL_PAGE_NEXT：4字节，下一页编号
+5)FIL_PAGE_LSN：8字节，最后被修改的日志序列位置(Log Sequence Number)
+6)FIL_PAGE_TYPE：2字节，页的类型
+7)其他...
+```
+- Page Header
+```text
+描述页内的各种状态信息。如页有多少条记录，有多少个槽...
+1)PAGE_N_DIR_SLOTS：2字节，页目录中槽数量
+2)PAGE_HEAP_TOP：2字节，第一个记录的地址
+3)PAGE_N_HEAP：2字节，本页中记录数量(包括最小和最大记录以及被标记为删除的记录)
+4)PAGE_FREE：2字节，指向可重用空间的地址
+5)PAGE_GARBAGE：2字节，已删除的字节数，行格式中delete_mask标记为1的记录大小总数
+6)PAGE_LAST_INSERT：2字节，最后插入记录的位置
+7)PAGE_N_RECS：2字节，本页中记录数量(不包括最小和最大记录以及被标记为删除的记录)
+8)PAGE_MAX_TRX_ID：2字节，修改当前页的最大事务ID，该值仅在二级索引中定义
+9)PAGE_LEVEL：2字节，当前页在索引树中的位置，高度
+10)其他...
+```
+- Infimum+Supremum
+```text
+数据页中最小记录和最大记录
+```
+- User Records 和 Free Space
+```text
+数据页中的记录是一个按照主键值由小到大连续的单向链表。随着插入记录条数增多，User Records逐渐变大，Free Space逐渐减少。
+```
+- Page Directory
+```text
+一、处理步骤：
+1)将所有正常记录(包括最大最小记录，不包括标记为已删除的记录)划分为几个组
+2)每个组的最后一条记录的头信息中的n_owned属性表示该组内共有几条记录
+3)将每个组最后一条记录的地址偏移量按顺序存储起来，每个地址偏移量被称为一个槽(slot)
+二、每组记录条数规定：
+1)最小记录所在分组：1条记录
+2)最大记录所在分组：1-8条记录
+3)正常记录所在分组：4-8条记录
+三、分组步骤：
+1)初始情况数据页中只有最小和最大记录，只有两个分组
+2)之后插入的每一条记录都会放到最大记录所在组，直到最大记录所在组记录条数等于8
+3)继续插入记录，将最大记录所在组平均分裂成2个组，每组4条，这里再把这条记录放入最大纪录所在组
+四、数据页中查找指定主键值记录的过程分为两步：
+1)通过二分法确定该记录所在的槽
+2)通过记录的next_record属性组成的链表遍历查找该槽中的各个记录
+```
+- File Trailer
+```text
+1)校验和(checksum)：占4字节，与File Header中的校验和对应。只有两者相等时才代表内存页同步到磁盘的过程没有出错
+2)日志序列位置(LSN)：占4字节，最后修改时对应的日志序列位置(Log Sequence Number),用于校验是否完整
 ```
 ### 2.事务和锁
 ### 3.视图
