@@ -466,6 +466,10 @@ netstat -anl 2>/dev/null | awk '/^tcp/{arr[$6]++}END{for(i in arr){print i"\t"ar
 ```shell
 awk '$8!=200{arr[$1]++}END{for(i in arr){print arr[i],i}}' access.log | sort -k1nr | head -n 10
 ```
+###### 6.删除分类重复数据
+```
+awk -F: '{if(arr[$3][$2]++){printf "delete from db.tableName where uid=%d and bid_announcement_uid=%d;\n", $1, $3; if(!bids[$3]){bids[$3]++} uids[$1]++}} END{print "影响的招标ID：\n"; for(i in bids){printf "%d,", i} print "\n影响uid:\n"; for (i in uids){printf "%s,", i} }' bidding.txt > bidding.sql
+```
 ### 8.shell杂项
 #### linux性能分析命令
 https://man.linuxde.net/vmstat
