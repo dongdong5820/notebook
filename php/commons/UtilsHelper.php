@@ -52,4 +52,25 @@ class UtilsHelper
 
         return $returnStr;
     }
+
+    public static function parseServiceConfig($config)
+    {
+        $data = [];
+        if (empty($config)) {
+            return $data;
+        }
+        $config = json_decode($config, true);
+        if (!empty($config['providers'])) {
+            foreach ($config['providers'] as $provider) {
+                $data['providers'][] = urldecode($provider);
+            }
+        }
+        if (!empty($config['consumers'])) {
+            foreach ($config['consumers'] as $consumer) {
+                $data['consumers'][] = urldecode($consumer);
+            }
+        }
+
+        return $data;
+    }
 }
