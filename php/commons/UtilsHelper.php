@@ -53,6 +53,11 @@ class UtilsHelper
         return $returnStr;
     }
 
+    /**
+     * 解析dubbo服务配置
+     * @param $config
+     * @return array
+     */
     public static function parseServiceConfig($config)
     {
         $data = [];
