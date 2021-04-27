@@ -1,7 +1,17 @@
 <?php
-
 class UtilsHelper
 {
+    /**
+     * 参数,其中：
+     * version, group用于和服务端匹配,group细化在方法一级
+     * timeout
+     * dubbo
+     * loadbalance
+     *
+     * @var array
+     */
+    public static $options = [];
+
     /**
      * 加密盐值
      */
@@ -53,6 +63,21 @@ class UtilsHelper
         return $returnStr;
     }
 
+    /**
+     * 设置选项
+     * @param $name
+     * @param $value
+     */
+    public static function setOption($name, $value)
+    {
+        self::$options[$name] = $value;
+    }
+
+    /**
+     * 解析dubbo服务配置
+     * @param $config
+     * @return array
+     */
     public static function parseServiceConfig($config)
     {
         $data = [];
@@ -72,5 +97,48 @@ class UtilsHelper
         }
 
         return $data;
+    }
+
+    /**
+     * 目前只处理hessian前缀的情况
+     * @param $provider
+     * @return string
+     */
+    public static function formatProvider($provider)
+    {
+        $provider = str_replace('hessian:', 'http:', $provider);
+        //处理选项
+        $urlInfo = parse_url($provider);
+        $arr     = explode('&', $urlInfo['query']);
+        $params  = array();
+        foreach ($arr as $item) {
+            $arrItem             = explode('=', $item);
+            $params[$arrItem[0]] = $arrItem[1];
+        }
+
+        //添加自定义的选项
+        foreach (self::$options as $key => $value) {
+            //超时时间dubbo的单位为毫秒
+            if ('connectTimeout' == $key) {
+                $value = $value * 1000;
+            }
+            $params[$key] = $value;
+        }
+
+        $provider = $urlInfo['scheme'] . '://' . $urlInfo['host'];
+        if (isset($urlInfo['port']) && ($urlInfo['port'] != 80)) {
+            $provider .= ':' . $urlInfo['port'];
+        }
+        $provider .= $urlInfo['path'] . '?';
+        $i        = 0;
+        foreach ($params as $key => $value) {
+            if ($i > 0) {
+                $provider .= '&';
+            }
+            $provider .= $key . '=' . urlencode($value);
+            ++$i;
+        }
+
+        return $provider;
     }
 }
