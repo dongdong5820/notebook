@@ -3,6 +3,9 @@ define(ROOT_PATH, dirname(__FILE__));
 
 require_once ROOT_PATH . '/commons/function_test.php';
 
+// 序列化和反序列化
+testSerialize();
+
 // 日期时间测试
 //testDateTime();
 
@@ -16,4 +19,4 @@ require_once ROOT_PATH . '/commons/function_test.php';
 //testFormatProvider();
 
 // GeoIP测试
-testGeoIp();
+//testGeoIp();
