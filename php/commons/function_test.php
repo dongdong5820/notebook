@@ -5,14 +5,53 @@ require_once ROOT_PATH . '/geoip/geoip2.phar';
 use GeoIp2\Database\Reader;
 
 /**
+ * 生成唯一昵称
+ * @return string
+ * @throws Exception
+ */
+function testGenUniqueUsername()
+{
+    $tryTime = 10;
+    for ($i = 1; $i <= $tryTime; $i++) {
+        $name = genUsername($i);
+
+        // 判断用户名是否已存在, 查询数据库user表
+        $isExist = false;
+        if (!$isExist) {
+            return $name;
+        }
+        // 记录日志
+        //log::writebizlog('biz','genUniqueUsername','gen unique name retry:'.$name);
+    }
+
+    //log::writebizlog('biz', 'genUniqueUsername', 'gen unique name fail', 'error');
+    throw new Exception('Generate unique username failed');
+}
+
+/**
+ * 生成随机昵称
+ * @param $charNum
+ * @return string
+ */
+function genUsername($charNum)
+{
+    $name = '';
+    // N个随机字母
+    for (; $charNum > 0; $charNum--) {
+        $name .= chr(rand(ord('A'), ord('Z')));
+    }
+
+    // 加上毫秒级时间戳
+    $num = intval(microtime(true) * 1000);
+    return $name.$num;
+}
+
+/**
  * 序列化和反序列化
  */
 function testSerialize()
 {
-    $a = <<<str
-a:1:{s:4:"hash";s:60:"$2a$10$iG8rzM4KAGVzY0Zz2abAK.gnzIfNf0DA3LkcfM0gh5OuM59A2W8F.";}
-str;
-    var_dump(unserialize($a));exit;
+    var_dump(ord('A'), ord('Z'));exit;
 }
 
 /**

@@ -3,8 +3,11 @@ define(ROOT_PATH, dirname(__FILE__));
 
 require_once ROOT_PATH . '/commons/function_test.php';
 
+// 生成唯一昵称
+echo testGenUniqueUsername();
+
 // 序列化和反序列化
-testSerialize();
+//testSerialize();
 
 // 日期时间测试
 //testDateTime();
