@@ -470,6 +470,32 @@ awk '$8!=200{arr[$1]++}END{for(i in arr){print arr[i],i}}' access.log | sort -k1
 ```
 awk -F: '{if(arr[$3][$2]++){printf "delete from db.tableName where uid=%d and bid_announcement_uid=%d;\n", $1, $3; if(!bids[$3]){bids[$3]++} uids[$1]++}} END{print "影响的招标ID：\n"; for(i in bids){printf "%d,", i} print "\n影响uid:\n"; for (i in uids){printf "%s,", i} }' bidding.txt > bidding.sql
 ```
+###### 7.修复社区两个账号的数据
+```shell
+awk -f members.awk two_members.txt > updateMembers.sql
+```
+members.awk文件
+```awk
+#!/bin/awk -f
+# 文件名: members.awk
+# 执行命令: awk -f members.awk two_members.txt > updateMembers.sql
+BEGIN{
+	pat="^[A-Z]{1}[0-9]{13}$"
+}
+
+{
+	if (NR > 1) {
+		printf "-- APP昵称： %s, PC端昵称： %s\n", $4, $10
+		if ($4 !~ pat && $10 ~ pat) {
+			# 手机端修改昵称，pc端未修改
+			printf "update pre_common_member set sso_id=%d WHERE uid=%d;\n",$9,$2
+			printf "update pre_common_member set sso_id=0 WHERE uid=%d;\n",$8
+		} else {
+			printf "update pre_common_member_map set uid=%d where umid=%d and uid=%d;\n",$8,$1,$2
+		}	
+	}
+}
+```
 ### 8.shell杂项
 #### linux性能分析命令
 https://man.linuxde.net/vmstat
